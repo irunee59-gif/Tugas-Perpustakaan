@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from config import (
-    COLOR_PRIMARY, COLOR_ACCENT, COLOR_ACCENT_DARK, COLOR_BG, COLOR_CARD,
+    COLOR_ACCENT, COLOR_ACCENT_DARK, COLOR_BG, COLOR_CARD,
     COLOR_TEXT, COLOR_MUTED, COLOR_SUCCESS, COLOR_DANGER,
-    FONT_NAV, FONT_LABEL, FONT_BUTTON, HoverButton,
+    FONT_LABEL, FONT_BUTTON, HoverButton, pulse_highlight,
     load_books, load_borrowings, add_borrowing, update_borrowing, delete_borrowing,
 )
 
@@ -14,60 +14,6 @@ class BorrowingManagementPage(tk.Frame):
         self.controller = controller
         self.selected_id = None
         self.book_map = {}
-
-        navbar = tk.Frame(self, bg=COLOR_PRIMARY, height=60)
-        navbar.pack(fill="x", side="top")
-        navbar.pack_propagate(False)
-
-        tk.Label(
-            navbar, text="Perpustakaan Digital",
-            bg=COLOR_PRIMARY, fg="white", font=("Segoe UI", 14, "bold")
-        ).pack(side="left", padx=20)
-
-        nav_left = tk.Frame(navbar, bg=COLOR_PRIMARY)
-        nav_left.pack(side="left", padx=10)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
-            text="Buku", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("BookManagementPage")
-        ).pack(side="left", padx=4)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_ACCENT, bg_hover=COLOR_ACCENT_DARK,
-            text="Peminjaman", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("BorrowingManagementPage")
-        ).pack(side="left", padx=4)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
-            text="Users", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("UsersManagementPage")
-        ).pack(side="left", padx=4)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
-            text="Beranda", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("HomePage")
-        ).pack(side="left", padx=4)
-
-        self.nav_right = tk.Frame(navbar, bg=COLOR_PRIMARY)
-        self.nav_right.pack(side="right", padx=20)
-
-        self.user_label = tk.Label(
-            self.nav_right, text="", bg=COLOR_PRIMARY, fg="white", font=FONT_NAV
-        )
-        self.user_label.pack(side="left", padx=(0, 12))
-
-        HoverButton(
-            self.nav_right, bg_normal="#c0392b", bg_hover="#a93226",
-            text="Logout", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2", command=controller.logout
-        ).pack(side="left")
 
         content = tk.Frame(self, bg=COLOR_BG)
         content.pack(fill="both", expand=True, padx=25, pady=18)
@@ -85,6 +31,7 @@ class BorrowingManagementPage(tk.Frame):
         form = tk.Frame(body, bg=COLOR_CARD, padx=22, pady=20,
                         highlightthickness=1, highlightbackground="#dfe6e9")
         form.grid(row=0, column=0, sticky="ns", padx=(0, 16))
+        self.form_card = form
 
         tk.Label(form, text="Form Peminjaman", bg=COLOR_CARD, fg=COLOR_TEXT,
                  font=("Segoe UI", 13, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 12))
@@ -162,12 +109,12 @@ class BorrowingManagementPage(tk.Frame):
         self.tree.heading("pinjam", text="Tgl Pinjam")
         self.tree.heading("kembali", text="Tgl Kembali")
         self.tree.heading("status", text="Status")
-        self.tree.column("id", width=40, anchor="center")
-        self.tree.column("username", width=120)
-        self.tree.column("judul", width=220)
-        self.tree.column("pinjam", width=110, anchor="center")
-        self.tree.column("kembali", width=110, anchor="center")
-        self.tree.column("status", width=90, anchor="center")
+        self.tree.column("id", width=36, anchor="center", stretch=False)
+        self.tree.column("username", width=90, stretch=True)
+        self.tree.column("judul", width=150, stretch=True)
+        self.tree.column("pinjam", width=90, anchor="center", stretch=False)
+        self.tree.column("kembali", width=90, anchor="center", stretch=False)
+        self.tree.column("status", width=70, anchor="center", stretch=False)
         self.tree.pack(fill="both", expand=True, padx=16, pady=(0, 16))
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
 
@@ -175,7 +122,6 @@ class BorrowingManagementPage(tk.Frame):
         if not self.controller.current_user:
             self.controller.show_frame("SignInPage")
             return
-        self.user_label.config(text="".join(["\U0001F464 ", str(self.controller.current_user)]))
         self.refresh_books()
         self.entry_search.delete(0, tk.END)
         self.clear_fields()
@@ -225,6 +171,7 @@ class BorrowingManagementPage(tk.Frame):
         if not values:
             return
         self.selected_id = values[0]
+        pulse_highlight(self.form_card)
         self.entry_username.delete(0, tk.END)
         self.entry_username.insert(0, values[1])
         for label, bid in self.book_map.items():
