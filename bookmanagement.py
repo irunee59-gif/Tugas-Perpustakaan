@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from config import (
-    COLOR_PRIMARY, COLOR_ACCENT, COLOR_ACCENT_DARK, COLOR_BG, COLOR_CARD,
+    COLOR_ACCENT, COLOR_ACCENT_DARK, COLOR_BG, COLOR_CARD,
     COLOR_TEXT, COLOR_MUTED, COLOR_SUCCESS, COLOR_DANGER,
-    FONT_NAV, FONT_LABEL, FONT_BUTTON, HoverButton,
+    FONT_LABEL, FONT_BUTTON, HoverButton, pulse_highlight,
     load_books, add_book, update_book, delete_book,
 )
 
@@ -13,60 +13,6 @@ class BookManagementPage(tk.Frame):
         super().__init__(parent, bg=COLOR_BG)
         self.controller = controller
         self.selected_id = None
-
-        navbar = tk.Frame(self, bg=COLOR_PRIMARY, height=60)
-        navbar.pack(fill="x", side="top")
-        navbar.pack_propagate(False)
-
-        tk.Label(
-            navbar, text="Perpustakaan Digital",
-            bg=COLOR_PRIMARY, fg="white", font=("Segoe UI", 14, "bold")
-        ).pack(side="left", padx=20)
-
-        nav_left = tk.Frame(navbar, bg=COLOR_PRIMARY)
-        nav_left.pack(side="left", padx=10)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_ACCENT, bg_hover=COLOR_ACCENT_DARK,
-            text="Buku", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("BookManagementPage")
-        ).pack(side="left", padx=4)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
-            text="Peminjaman", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("BorrowingManagementPage")
-        ).pack(side="left", padx=4)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
-            text="Users", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("UsersManagementPage")
-        ).pack(side="left", padx=4)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
-            text="Beranda", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("HomePage")
-        ).pack(side="left", padx=4)
-
-        self.nav_right = tk.Frame(navbar, bg=COLOR_PRIMARY)
-        self.nav_right.pack(side="right", padx=20)
-
-        self.user_label = tk.Label(
-            self.nav_right, text="", bg=COLOR_PRIMARY, fg="white", font=FONT_NAV
-        )
-        self.user_label.pack(side="left", padx=(0, 12))
-
-        HoverButton(
-            self.nav_right, bg_normal="#c0392b", bg_hover="#a93226",
-            text="Logout", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2", command=controller.logout
-        ).pack(side="left")
 
         content = tk.Frame(self, bg=COLOR_BG)
         content.pack(fill="both", expand=True, padx=25, pady=18)
@@ -84,6 +30,7 @@ class BookManagementPage(tk.Frame):
         form = tk.Frame(body, bg=COLOR_CARD, padx=22, pady=20,
                         highlightthickness=1, highlightbackground="#dfe6e9")
         form.grid(row=0, column=0, sticky="ns", padx=(0, 16))
+        self.form_card = form
 
         tk.Label(form, text="Form Buku", bg=COLOR_CARD, fg=COLOR_TEXT,
                  font=("Segoe UI", 13, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 12))
@@ -108,29 +55,42 @@ class BookManagementPage(tk.Frame):
         self.entry_stok = tk.Entry(form, font=FONT_LABEL, width=30, relief="solid", bd=1)
         self.entry_stok.grid(row=8, column=0, columnspan=2, pady=(4, 16), ipady=4)
 
-        HoverButton(
+        self.btn_add = HoverButton(
             form, bg_normal=COLOR_ACCENT, bg_hover=COLOR_ACCENT_DARK,
             text="Tambah", fg="white", font=FONT_BUTTON, bd=0,
-            cursor="hand2", command=self.handle_add
-        ).grid(row=9, column=0, sticky="ew", ipady=7, padx=(0, 5))
+            cursor="hand2", command=self.handle_add,
+            disabledforeground="#bdc3c7",
+        )
+        self.btn_add.grid(row=9, column=0, sticky="ew", ipady=7, padx=(0, 5))
 
-        HoverButton(
+        self.btn_update = HoverButton(
             form, bg_normal=COLOR_SUCCESS, bg_hover="#1e8449",
             text="Update", fg="white", font=FONT_BUTTON, bd=0,
-            cursor="hand2", command=self.handle_update
-        ).grid(row=9, column=1, sticky="ew", ipady=7, padx=(5, 0))
+            cursor="hand2", command=self.handle_update,
+            disabledforeground="#bdc3c7",
+        )
+        self.btn_update.grid(row=9, column=1, sticky="ew", ipady=7, padx=(5, 0))
 
-        HoverButton(
+        self.btn_delete = HoverButton(
             form, bg_normal=COLOR_DANGER, bg_hover="#a93226",
             text="Hapus", fg="white", font=FONT_BUTTON, bd=0,
-            cursor="hand2", command=self.handle_delete
-        ).grid(row=10, column=0, sticky="ew", ipady=7, pady=(8, 0), padx=(0, 5))
+            cursor="hand2", command=self.handle_delete,
+            disabledforeground="#bdc3c7",
+        )
+        self.btn_delete.grid(row=10, column=0, sticky="ew", ipady=7, pady=(8, 0), padx=(0, 5))
 
-        HoverButton(
+        self.btn_clear = HoverButton(
             form, bg_normal=COLOR_MUTED, bg_hover="#707b7c",
             text="Clear", fg="white", font=FONT_BUTTON, bd=0,
-            cursor="hand2", command=self.clear_fields
-        ).grid(row=10, column=1, sticky="ew", ipady=7, pady=(8, 0), padx=(5, 0))
+            cursor="hand2", command=self.clear_fields,
+            disabledforeground="#bdc3c7",
+        )
+        self.btn_clear.grid(row=10, column=1, sticky="ew", ipady=7, pady=(8, 0), padx=(5, 0))
+
+        for entry in (
+            self.entry_judul, self.entry_penulis, self.entry_tahun, self.entry_stok,
+        ):
+            entry.bind("<KeyRelease>", lambda _e: self.update_button_states(), add="+")
 
         right = tk.Frame(body, bg=COLOR_CARD,
                          highlightthickness=1, highlightbackground="#dfe6e9")
@@ -153,19 +113,19 @@ class BookManagementPage(tk.Frame):
         self.tree.heading("penulis", text="Penulis")
         self.tree.heading("tahun", text="Tahun")
         self.tree.heading("stok", text="Stok")
-        self.tree.column("id", width=50, anchor="center")
-        self.tree.column("judul", width=300)
-        self.tree.column("penulis", width=200)
-        self.tree.column("tahun", width=80, anchor="center")
-        self.tree.column("stok", width=70, anchor="center")
+        self.tree.column("id", width=40, anchor="center", stretch=False)
+        self.tree.column("judul", width=180, stretch=True)
+        self.tree.column("penulis", width=130, stretch=True)
+        self.tree.column("tahun", width=60, anchor="center", stretch=False)
+        self.tree.column("stok", width=50, anchor="center", stretch=False)
         self.tree.pack(fill="both", expand=True, padx=16, pady=(0, 16))
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+        self.update_button_states()
 
     def on_show(self):
         if not self.controller.current_user:
             self.controller.show_frame("SignInPage")
             return
-        self.user_label.config(text="".join(["\U0001F464 ", str(self.controller.current_user)]))
         self.clear_fields()
         self.entry_search.delete(0, tk.END)
         self.refresh_table()
@@ -195,6 +155,7 @@ class BookManagementPage(tk.Frame):
         if not values:
             return
         self.selected_id = values[0]
+        pulse_highlight(self.form_card)
         self.entry_judul.delete(0, tk.END)
         self.entry_judul.insert(0, values[1])
         self.entry_penulis.delete(0, tk.END)
@@ -203,6 +164,7 @@ class BookManagementPage(tk.Frame):
         self.entry_tahun.insert(0, values[3])
         self.entry_stok.delete(0, tk.END)
         self.entry_stok.insert(0, values[4])
+        self.update_button_states()
 
     def read_form(self):
         judul = self.entry_judul.get().strip()
@@ -210,6 +172,15 @@ class BookManagementPage(tk.Frame):
         tahun = self.entry_tahun.get().strip()
         stok_text = self.entry_stok.get().strip()
         return judul, penulis, tahun, stok_text
+
+    def update_button_states(self):
+        complete = all(self.read_form())
+        selected = self.selected_id is not None
+        has_value = any(self.read_form()) or selected
+        self.btn_add.config(state="normal" if complete else "disabled")
+        self.btn_update.config(state="normal" if complete and selected else "disabled")
+        self.btn_delete.config(state="normal" if selected else "disabled")
+        self.btn_clear.config(state="normal" if has_value else "disabled")
 
     def handle_add(self):
         judul, penulis, tahun, stok_text = self.read_form()
@@ -278,3 +249,4 @@ class BookManagementPage(tk.Frame):
         selection = self.tree.selection()
         if selection:
             self.tree.selection_remove(selection)
+        self.update_button_states()
