@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import messagebox
 from config import (
-    COLOR_ACCENT, COLOR_ACCENT_DARK, COLOR_BG, COLOR_CARD, COLOR_TEXT,
+    APP_NAME, COLOR_ACCENT, COLOR_ACCENT_DARK, COLOR_BG, COLOR_CARD, COLOR_TEXT,
     COLOR_MUTED, FONT_SUBTITLE, FONT_LABEL, FONT_BUTTON, HoverButton,
-    verify_login,
+    bind_hover_option, verify_login,
 )
 
 
@@ -17,7 +17,7 @@ class SignInPage(tk.Frame):
         card.place(relx=0.5, rely=0.5, anchor="center")
 
         tk.Label(
-            card, text="📚 Masuk ke Akun Anda", bg=COLOR_CARD, fg=COLOR_TEXT,
+            card, text=f"Masuk ke {APP_NAME}", bg=COLOR_CARD, fg=COLOR_TEXT,
             font=("Segoe UI", 20, "bold")
         ).grid(row=0, column=0, columnspan=2, pady=(0, 5), sticky="w")
 
@@ -40,11 +40,16 @@ class SignInPage(tk.Frame):
 
         self.entry_password.bind("<Return>", lambda e: self.handle_signin())
 
-        HoverButton(
+        self.btn_login = HoverButton(
             card, bg_normal=COLOR_ACCENT, bg_hover=COLOR_ACCENT_DARK,
             text="Masuk", fg="white", font=FONT_BUTTON, bd=0,
-            cursor="hand2", command=self.handle_signin
-        ).grid(row=6, column=0, columnspan=2, sticky="ew", ipady=10)
+            cursor="hand2", command=self.handle_signin,
+            disabledforeground="#bdc3c7",
+        )
+        self.btn_login.grid(row=6, column=0, columnspan=2, sticky="ew", ipady=10)
+        for entry in (self.entry_username, self.entry_password):
+            entry.bind("<KeyRelease>", lambda _e: self.update_button_state(), add="+")
+        self.update_button_state()
 
         bottom_frame = tk.Frame(card, bg=COLOR_CARD)
         bottom_frame.grid(row=7, column=0, columnspan=2, pady=(20, 0))
@@ -55,12 +60,14 @@ class SignInPage(tk.Frame):
                          cursor="hand2")
         link.pack(side="left")
         link.bind("<Button-1>", lambda e: controller.show_frame("SignUpPage"))
+        bind_hover_option(link, "fg", COLOR_ACCENT, COLOR_ACCENT_DARK)
 
         back_link = tk.Label(card, text="← Kembali ke Beranda", bg=COLOR_CARD,
                               fg=COLOR_MUTED, font=("Segoe UI", 10, "underline"),
                               cursor="hand2")
         back_link.grid(row=8, column=0, columnspan=2, pady=(15, 0))
         back_link.bind("<Button-1>", lambda e: controller.show_frame("HomePage"))
+        bind_hover_option(back_link, "fg", COLOR_MUTED, COLOR_TEXT)
 
     def handle_signin(self):
         username = self.entry_username.get().strip()
@@ -72,16 +79,19 @@ class SignInPage(tk.Frame):
 
         success, message = verify_login(username, password)
         if success:
-            self.controller.set_current_user(username)
-            messagebox.showinfo("Berhasil", f"{message} Selamat datang, {username}!")
             self.clear_fields()
-            self.controller.show_frame("BookManagementPage")
+            self.controller.login_success(username)
         else:
             messagebox.showerror("Login Gagal", message)
+
+    def update_button_state(self):
+        complete = bool(self.entry_username.get().strip() and self.entry_password.get())
+        self.btn_login.config(state="normal" if complete else "disabled")
 
     def clear_fields(self):
         self.entry_username.delete(0, tk.END)
         self.entry_password.delete(0, tk.END)
+        self.update_button_state()
 
     def on_show(self):
         self.clear_fields()
