@@ -1,9 +1,9 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from config import (
-    COLOR_PRIMARY, COLOR_ACCENT, COLOR_ACCENT_DARK, COLOR_BG, COLOR_CARD,
+    COLOR_ACCENT, COLOR_ACCENT_DARK, COLOR_BG, COLOR_CARD,
     COLOR_TEXT, COLOR_MUTED, COLOR_SUCCESS, COLOR_DANGER,
-    FONT_NAV, FONT_LABEL, FONT_BUTTON, HoverButton,
+    FONT_LABEL, FONT_BUTTON, HoverButton, pulse_highlight,
     load_users, register_user, update_user, delete_user,
 )
 
@@ -13,60 +13,6 @@ class UsersManagementPage(tk.Frame):
         super().__init__(parent, bg=COLOR_BG)
         self.controller = controller
         self.selected_old_username = None
-
-        navbar = tk.Frame(self, bg=COLOR_PRIMARY, height=60)
-        navbar.pack(fill="x", side="top")
-        navbar.pack_propagate(False)
-
-        tk.Label(
-            navbar, text="Perpustakaan Digital",
-            bg=COLOR_PRIMARY, fg="white", font=("Segoe UI", 14, "bold")
-        ).pack(side="left", padx=20)
-
-        nav_left = tk.Frame(navbar, bg=COLOR_PRIMARY)
-        nav_left.pack(side="left", padx=10)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
-            text="Buku", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("BookManagementPage")
-        ).pack(side="left", padx=4)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
-            text="Peminjaman", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("BorrowingManagementPage")
-        ).pack(side="left", padx=4)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_ACCENT, bg_hover=COLOR_ACCENT_DARK,
-            text="Users", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("UsersManagementPage")
-        ).pack(side="left", padx=4)
-
-        HoverButton(
-            nav_left, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
-            text="Beranda", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2",
-            command=lambda: controller.show_frame("HomePage")
-        ).pack(side="left", padx=4)
-
-        self.nav_right = tk.Frame(navbar, bg=COLOR_PRIMARY)
-        self.nav_right.pack(side="right", padx=20)
-
-        self.user_label = tk.Label(
-            self.nav_right, text="", bg=COLOR_PRIMARY, fg="white", font=FONT_NAV
-        )
-        self.user_label.pack(side="left", padx=(0, 12))
-
-        HoverButton(
-            self.nav_right, bg_normal="#c0392b", bg_hover="#a93226",
-            text="Logout", fg="white", font=FONT_NAV, bd=0, padx=14, pady=6,
-            cursor="hand2", command=controller.logout
-        ).pack(side="left")
 
         content = tk.Frame(self, bg=COLOR_BG)
         content.pack(fill="both", expand=True, padx=25, pady=18)
@@ -84,6 +30,7 @@ class UsersManagementPage(tk.Frame):
         form = tk.Frame(body, bg=COLOR_CARD, padx=22, pady=20,
                         highlightthickness=1, highlightbackground="#dfe6e9")
         form.grid(row=0, column=0, sticky="ns", padx=(0, 16))
+        self.form_card = form
 
         tk.Label(form, text="Form User", bg=COLOR_CARD, fg=COLOR_TEXT,
                  font=("Segoe UI", 13, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 12))
@@ -145,8 +92,8 @@ class UsersManagementPage(tk.Frame):
         self.tree = ttk.Treeview(right, columns=columns, show="headings", height=18)
         self.tree.heading("username", text="Username")
         self.tree.heading("email", text="Email")
-        self.tree.column("username", width=220)
-        self.tree.column("email", width=380)
+        self.tree.column("username", width=140, stretch=True)
+        self.tree.column("email", width=220, stretch=True)
         self.tree.pack(fill="both", expand=True, padx=16, pady=(0, 16))
         self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
 
@@ -154,7 +101,6 @@ class UsersManagementPage(tk.Frame):
         if not self.controller.current_user:
             self.controller.show_frame("SignInPage")
             return
-        self.user_label.config(text="".join(["\U0001F464 ", str(self.controller.current_user)]))
         self.clear_fields()
         self.entry_search.delete(0, tk.END)
         self.refresh_table()
@@ -178,6 +124,7 @@ class UsersManagementPage(tk.Frame):
         if not values:
             return
         self.selected_old_username = values[0]
+        pulse_highlight(self.form_card)
         self.entry_username.delete(0, tk.END)
         self.entry_username.insert(0, values[0])
         self.entry_email.delete(0, tk.END)
@@ -225,7 +172,6 @@ class UsersManagementPage(tk.Frame):
         if success:
             if self.controller.current_user == self.selected_old_username:
                 self.controller.set_current_user(new_username)
-                self.user_label.config(text="".join(["\U0001F464 ", new_username]))
             messagebox.showinfo("Berhasil", message)
             self.clear_fields()
             self.refresh_table()
