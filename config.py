@@ -6,6 +6,7 @@ import hashlib
 
 APP_WIDTH = 1280
 APP_HEIGHT = 720
+APP_NAME = "D-Book"
 
 USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.json")
 BOOKS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "books.json")
@@ -321,10 +322,252 @@ def delete_borrowing(borrow_id: int) -> tuple[bool, str]:
     return True, "Data peminjaman berhasil dihapus."
 
 
+def ease_out_cubic(t: float) -> float:
+    t = max(0.0, min(1.0, t))
+    return 1 - (1 - t) ** 3
+
+
+def hex_to_rgb(value: str) -> tuple[int, int, int]:
+    value = value.strip().lstrip("#")
+    if len(value) == 3:
+        value = "".join(ch * 2 for ch in value)
+    return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
+    return "#{:02x}{:02x}{:02x}".format(
+        max(0, min(255, int(rgb[0]))),
+        max(0, min(255, int(rgb[1]))),
+        max(0, min(255, int(rgb[2]))),
+    )
+
+
+def lerp_color(start: str, end: str, t: float) -> str:
+    sr, sg, sb = hex_to_rgb(start)
+    er, eg, eb = hex_to_rgb(end)
+    t = max(0.0, min(1.0, t))
+    return rgb_to_hex((sr + (er - sr) * t, sg + (eg - sg) * t, sb + (eb - sb) * t))
+
+
+_REDUCED_MOTION = None
+
+
+def prefers_reduced_motion() -> bool:
+    global _REDUCED_MOTION
+    if _REDUCED_MOTION is not None:
+        return _REDUCED_MOTION
+    _REDUCED_MOTION = False
+    try:
+        import ctypes
+        enabled = ctypes.c_int()
+        ok = ctypes.windll.user32.SystemParametersInfoW(0x1042, 0, ctypes.byref(enabled), 0)
+        if ok:
+            _REDUCED_MOTION = not bool(enabled.value)
+    except (AttributeError, OSError):
+        _REDUCED_MOTION = False
+    return _REDUCED_MOTION
+
+
+def run_animation(widget, duration_ms: int, on_frame, on_done=None):
+    """Jalankan animasi ~60fps. Mengembalikan fungsi untuk membatalkan."""
+    if prefers_reduced_motion() or duration_ms <= 0:
+        try:
+            on_frame(1)
+            if on_done:
+                on_done()
+        except tk.TclError:
+            pass
+        return lambda: None
+
+    token = {"id": None, "cancelled": False, "step": 0}
+    steps = max(1, round(duration_ms / 16))
+
+    def tick():
+        if token["cancelled"]:
+            return
+        try:
+            if not widget.winfo_exists():
+                return
+            token["step"] += 1
+            t = ease_out_cubic(token["step"] / steps)
+            on_frame(t)
+            if token["cancelled"]:
+                return
+            if token["step"] < steps:
+                token["id"] = widget.after(16, tick)
+            elif on_done:
+                on_done()
+        except tk.TclError:
+            return
+
+    tick()
+
+    def cancel():
+        token["cancelled"] = True
+        if token["id"] is not None:
+            try:
+                widget.after_cancel(token["id"])
+            except tk.TclError:
+                pass
+        token["id"] = None
+
+    return cancel
+
+
+def pointer_inside(widget) -> bool:
+    try:
+        x, y = widget.winfo_pointerxy()
+        target = widget.winfo_containing(x, y)
+    except tk.TclError:
+        return False
+    while target is not None:
+        if target is widget:
+            return True
+        target = getattr(target, "master", None)
+    return False
+
+
+def bind_group_hover(widget, on_enter, on_leave):
+    """Hover yang tidak berkedip saat kursor pindah ke widget anak."""
+    state = {"inside": False, "after_id": None}
+
+    def enter(_event=None):
+        if state["after_id"] is not None:
+            try:
+                widget.after_cancel(state["after_id"])
+            except tk.TclError:
+                pass
+            state["after_id"] = None
+        if not state["inside"]:
+            state["inside"] = True
+            on_enter()
+
+    def leave(_event=None):
+        def check():
+            state["after_id"] = None
+            if pointer_inside(widget):
+                return
+            if state["inside"]:
+                state["inside"] = False
+                on_leave()
+
+        if state["after_id"] is not None:
+            try:
+                widget.after_cancel(state["after_id"])
+            except tk.TclError:
+                pass
+        try:
+            state["after_id"] = widget.after(20, check)
+        except tk.TclError:
+            pass
+
+    def walk(node):
+        node.bind("<Enter>", enter, add="+")
+        node.bind("<Leave>", leave, add="+")
+        for child in node.winfo_children():
+            walk(child)
+
+    walk(widget)
+
+
+def bind_hover_option(widget, option: str, normal: str, hover: str, duration: int = 160):
+    state = {"cancel": None, "value": 0.0}
+
+    def go(target):
+        if state["cancel"]:
+            state["cancel"]()
+        start_t = state["value"]
+
+        def on_frame(t):
+            state["value"] = start_t + (target - start_t) * t
+            widget.configure(**{option: lerp_color(normal, hover, state["value"])})
+
+        state["cancel"] = run_animation(widget, duration, on_frame)
+
+    widget.bind("<Enter>", lambda _e: go(1), add="+")
+    widget.bind("<Leave>", lambda _e: go(0), add="+")
+
+    def _cleanup(_e=None):
+        if state["cancel"]:
+            state["cancel"]()
+
+    widget.bind("<Destroy>", _cleanup, add="+")
+
+
+def attach_entry_motion(entry: tk.Entry, base: str = "#dfe6e9", focus: str = COLOR_ACCENT):
+    entry.configure(
+        highlightthickness=1, highlightbackground=base, highlightcolor=base,
+        bd=0, relief="flat", insertbackground=COLOR_TEXT,
+    )
+    state = {"cancel": None, "color": base}
+
+    def paint(color: str):
+        state["color"] = color
+        entry.configure(highlightbackground=color, highlightcolor=color)
+
+    def go(target: str):
+        if state["cancel"]:
+            state["cancel"]()
+        start = state["color"]
+
+        def on_frame(t):
+            paint(lerp_color(start, target, t))
+
+        state["cancel"] = run_animation(entry, 160, on_frame)
+
+    entry.bind("<FocusIn>", lambda _e: go(focus), add="+")
+    entry.bind("<FocusOut>", lambda _e: go(base), add="+")
+    entry.bind("<Destroy>", lambda _e: state["cancel"] and state["cancel"](), add="+")
+
+
+def polish_entries(root):
+    if root.winfo_class() == "Entry":
+        attach_entry_motion(root)
+    for child in root.winfo_children():
+        polish_entries(child)
+
+
+def pulse_highlight(widget, color=COLOR_ACCENT, base="#dfe6e9", duration: int = 320):
+    def on_frame(t):
+        import math
+        peak = math.sin(max(0.0, min(1.0, t)) * math.pi)
+        widget.configure(highlightbackground=lerp_color(base, color, peak))
+
+    return run_animation(widget, duration, on_frame)
+
+
 class HoverButton(tk.Button):
     def __init__(self, master, bg_normal, bg_hover, **kwargs):
         super().__init__(master, bg=bg_normal, activebackground=bg_hover, **kwargs)
         self.bg_normal = bg_normal
         self.bg_hover = bg_hover
-        self.bind("<Enter>", lambda e: self.config(bg=self.bg_hover))
-        self.bind("<Leave>", lambda e: self.config(bg=self.bg_normal))
+        self._hover_value = 0.0
+        self._hover_cancel = None
+        self.bind("<Enter>", self._hover_in, add="+")
+        self.bind("<Leave>", self._hover_out, add="+")
+        self.bind("<Destroy>", self._cancel_hover, add="+")
+
+    def _cancel_hover(self, _event=None):
+        if self._hover_cancel:
+            self._hover_cancel()
+            self._hover_cancel = None
+
+    def _animate_hover(self, target: float):
+        self._cancel_hover()
+        start = self._hover_value
+
+        def on_frame(t):
+            self._hover_value = start + (target - start) * t
+            self.configure(bg=lerp_color(self.bg_normal, self.bg_hover, self._hover_value))
+
+        self._hover_cancel = run_animation(self, 160, on_frame)
+
+    def _hover_in(self, _event=None):
+        if str(self.cget("state")) == "disabled":
+            return
+        self._animate_hover(1)
+
+    def _hover_out(self, _event=None):
+        if str(self.cget("state")) == "disabled":
+            return
+        self._animate_hover(0)
