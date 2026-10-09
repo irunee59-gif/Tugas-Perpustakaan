@@ -1,8 +1,9 @@
 import tkinter as tk
 from config import (
-    COLOR_PRIMARY, COLOR_ACCENT, COLOR_ACCENT_DARK, COLOR_BG, COLOR_CARD,
-    COLOR_TEXT, COLOR_MUTED, FONT_TITLE, FONT_SUBTITLE, FONT_NAV,
-    FONT_CARD_TITLE, FONT_CARD_BODY, ARTIKEL_PERPUSTAKAAN, HoverButton,
+    APP_NAME, COLOR_PRIMARY, COLOR_ACCENT, COLOR_ACCENT_DARK, COLOR_BG, COLOR_CARD,
+    COLOR_TEXT, COLOR_MUTED, FONT_TITLE, FONT_SUBTITLE,
+    FONT_CARD_TITLE, FONT_CARD_BODY, ARTIKEL_PERPUSTAKAAN,
+    HoverButton, bind_group_hover, lerp_color, run_animation,
 )
 
 
@@ -10,20 +11,7 @@ class HomePage(tk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent, bg=COLOR_BG)
         self.controller = controller
-
-        navbar = tk.Frame(self, bg=COLOR_PRIMARY, height=70)
-        navbar.pack(fill="x", side="top")
-        navbar.pack_propagate(False)
-
-        logo_label = tk.Label(
-            navbar, text="Perpustakaan Digital",
-            bg=COLOR_PRIMARY, fg="white", font=("Segoe UI", 16, "bold")
-        )
-        logo_label.pack(side="left", padx=30)
-
-        self.nav_right = tk.Frame(navbar, bg=COLOR_PRIMARY)
-        self.nav_right.pack(side="right", padx=30)
-
+        self._cards = []
 
         hero = tk.Frame(self, bg=COLOR_ACCENT, height=180)
         hero.pack(fill="x")
@@ -33,15 +21,30 @@ class HomePage(tk.Frame):
         hero_inner.pack(expand=True)
 
         tk.Label(
-            hero_inner, text="Selamat Datang di Perpustakaan Digital",
+            hero_inner, text=f"Selamat Datang di {APP_NAME}",
             bg=COLOR_ACCENT, fg="white", font=FONT_TITLE
         ).pack(pady=(30, 5))
 
         tk.Label(
             hero_inner,
             text="Jelajahi koleksi buku, baca artikel terbaru, dan kelola peminjamanmu di sini.",
-            bg=COLOR_ACCENT, fg="#eaf2f8", font=FONT_SUBTITLE
+            bg=COLOR_ACCENT, fg="#eaf2f8", font=FONT_SUBTITLE,
+            wraplength=760, justify="center",
         ).pack()
+
+        self.guest_actions = tk.Frame(hero_inner, bg=COLOR_ACCENT)
+        HoverButton(
+            self.guest_actions, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
+            text="Login", fg="white", bd=0, padx=18, pady=7,
+            cursor="hand2",
+            command=lambda: controller.show_frame("SignInPage"),
+        ).pack(side="left", padx=5)
+        HoverButton(
+            self.guest_actions, bg_normal="#ffffff", bg_hover="#eaf2f8",
+            text="Sign Up", fg=COLOR_ACCENT_DARK, bd=0, padx=18, pady=7,
+            cursor="hand2",
+            command=lambda: controller.show_frame("SignUpPage"),
+        ).pack(side="left", padx=5)
 
         content_area = tk.Frame(self, bg=COLOR_BG)
         content_area.pack(fill="both", expand=True, padx=40, pady=25)
@@ -64,7 +67,7 @@ class HomePage(tk.Frame):
         footer.pack(fill="x", side="bottom")
         footer.pack_propagate(False)
         tk.Label(
-            footer, text="© 2026 Perpustakaan Digital — Semua hak cipta dilindungi.",
+            footer, text=f"© 2026 {APP_NAME} — Semua hak cipta dilindungi.",
             bg=COLOR_PRIMARY, fg="#bdc3c7", font=("Segoe UI", 9)
         ).pack(pady=8)
 
@@ -86,42 +89,32 @@ class HomePage(tk.Frame):
 
         tk.Label(
             card, text=artikel["ringkasan"], bg=COLOR_CARD, fg=COLOR_MUTED,
-            font=FONT_CARD_BODY, wraplength=480, justify="left"
+            font=FONT_CARD_BODY, wraplength=420, justify="left"
         ).pack(anchor="w", padx=18, pady=(6, 18))
 
+        self._bind_card_hover(card)
+        self._cards.append(card)
+
+    def _bind_card_hover(self, card):
+        normal = "#dfe6e9"
+        hover = COLOR_ACCENT
+        state = {"cancel": None, "color": normal}
+
+        def go(target):
+            if state["cancel"]:
+                state["cancel"]()
+            start = state["color"]
+
+            def on_frame(t):
+                state["color"] = lerp_color(start, target, t)
+                card.configure(highlightbackground=state["color"])
+
+            state["cancel"] = run_animation(card, 180, on_frame)
+
+        bind_group_hover(card, lambda: go(hover), lambda: go(normal))
+
     def on_show(self):
-        for widget in self.nav_right.winfo_children():
-            widget.destroy()
-
         if self.controller.current_user:
-            tk.Label(
-                self.nav_right, text=f"👤 {self.controller.current_user}",
-                bg=COLOR_PRIMARY, fg="white", font=FONT_NAV
-            ).pack(side="left", padx=(0, 15))
-
-            HoverButton(
-                self.nav_right, bg_normal=COLOR_ACCENT, bg_hover=COLOR_ACCENT_DARK,
-                text="Dashboard", fg="white", font=FONT_NAV, bd=0, padx=18, pady=8,
-                cursor="hand2",
-                command=lambda: self.controller.show_frame("BookManagementPage")
-            ).pack(side="left", padx=(0, 10))
-
-            HoverButton(
-                self.nav_right, bg_normal="#c0392b", bg_hover="#a93226",
-                text="Logout", fg="white", font=FONT_NAV, bd=0, padx=18, pady=8,
-                cursor="hand2", command=self.controller.logout
-            ).pack(side="left")
-        else:
-            HoverButton(
-                self.nav_right, bg_normal=COLOR_PRIMARY, bg_hover="#34495e",
-                text="Login", fg="white", font=FONT_NAV, bd=0, padx=18, pady=8,
-                cursor="hand2",
-                command=lambda: self.controller.show_frame("SignInPage")
-            ).pack(side="left", padx=(0, 10))
-
-            HoverButton(
-                self.nav_right, bg_normal=COLOR_ACCENT, bg_hover=COLOR_ACCENT_DARK,
-                text="Sign Up", fg="white", font=FONT_NAV, bd=0, padx=18, pady=8,
-                cursor="hand2",
-                command=lambda: self.controller.show_frame("SignUpPage")
-            ).pack(side="left")
+            self.guest_actions.pack_forget()
+        elif not self.guest_actions.winfo_manager():
+            self.guest_actions.pack(pady=(12, 0))
